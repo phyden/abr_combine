@@ -1,0 +1,3 @@
+[submodule "ext/resfinder"]
+	path = ext/resfinder
+	url = https://git@bitbucket.org/genomicepidemiology/resfinder
