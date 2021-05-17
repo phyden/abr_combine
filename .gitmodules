@@ -1,3 +1,9 @@
 [submodule "ext/resfinder"]
 	path = ext/resfinder
 	url = https://git@bitbucket.org/genomicepidemiology/resfinder
+[submodule "ext/db_resfinder"]
+	path = ext/db_resfinder
+	url = https://git@bitbucket.org/genomicepidemiology/resfinder_db
+[submodule "ext/db_pointfinder"]
+	path = ext/db_pointfinder
+	url = https://git@bitbucket.org/genomicepidemiology/pointfinder_db
