@@ -7,13 +7,13 @@ from tempfile import TemporaryDirectory
 import gzip
 import shutil
 
-from abr_combine.util import find_tools, run_tools, EXT_DIR
+from abr_combine.util import find_tools, run_tools, EXT_DIR, get_version
 from abr_combine.transform import *
 
 parser = argparse.ArgumentParser(description="Create a consensus prediction from multiple resistance detection tools")
 
 # input parameters
-parser.add_argument("-i", "--input", dest="input_fasta", help="input nucleotide fasta file (i.e. genome, contigs)", required=True)
+parser.add_argument("-i", "--input", dest="input_fasta", help="input nucleotide fasta file (i.e. genome, contigs)")
 parser.add_argument("-s", "--species", dest="species", help="species name", default="")
 
 # tool selection
@@ -26,6 +26,7 @@ parser.add_argument("--resfinder", dest="resfinder", help="Run CGE ResFinder", a
 parser.add_argument("--tmp", dest="tmpdir", help="prefix for temporary file storage [/tmp]", default="/tmp")
 parser.add_argument("-o", dest="outtable", help="prefix to write output tables [STDOUT]", default=None)
 parser.add_argument("--xls", dest="excelfile", help="write all possible output into one excel file", default=None)
+parser.add_argument("-v", "--version", dest="version", help="Print versions and exits", action="store_true", default=False)
 
 
 def main():
@@ -47,6 +48,11 @@ def main():
         for s in methods:
             if nf == s:
                 methods.remove(s)
+
+    if args.version:
+        for m in ["Main", *methods]:
+            print(f"{m}: {get_version(m)}")
+        exit(0)
 
     with TemporaryDirectory(dir=args.tmpdir) as tmpdir:
         if args.input_fasta.endswith(".gz"):
