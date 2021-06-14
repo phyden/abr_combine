@@ -11,7 +11,7 @@ EXT_DIR = os.path.join(ROOT_DIR, "..", "ext")
 #### parameters and paths for tools ####
 
 tools = {"name": ["CARD-RGI","NCBIAMRFinder","ResFinder"],
-         "cmd":  ["rgi","amrfinder", os.path.join(EXT_DIR,"resfinder","run_resfinder.py")],
+         "cmd":  ["rgi","amrfinder","run_resfinder.py"],
          "test": [["main","-v"], ["--version"], ["-h"]],
          "default_params": [["main"],
                             [],
@@ -30,7 +30,7 @@ def transl_orgn_amrfinder(cmd, organism):
 
 
 def transl_orgn_resfinder(cmd, organism):
-    availables_raw = os.listdir(os.path.dirname(cmd) + "/../db_pointfinder")
+    availables_raw = os.listdir(os.path.join(EXT_DIR,"db_pointfinder"))
     avail_list = [a.strip().replace("_"," ") for a in availables_raw]
     organism = " ".join(organism.split(" ")[:2]).lower()
     return find_orgn_in_list(avail_list, organism)
@@ -74,7 +74,7 @@ def get_version_resfinder(cmd):
 
 
 def get_version_main():
-    version, commit = Generator.get_version_commit(ROOT_DIR)
+    version, commit = Generator.get_version_commit(os.path.dirname(ROOT_DIR))
     return version
 
 

@@ -203,6 +203,7 @@ def view_by_antibiotic(df_in, methods):
     s.name = "antibiotic_final"
     df.drop("antibiotic_final", axis=1, inplace=True)
     df = df.join(s)
+    df["antibiotic_final"] = df["antibiotic_final"].str.strip()
     df.reset_index(inplace=True)
 
     tool_series = []

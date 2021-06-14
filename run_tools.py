@@ -7,8 +7,10 @@ from tempfile import TemporaryDirectory
 import gzip
 import shutil
 
-from abr_combine.util import find_tools, run_tools, EXT_DIR, get_version
+from abr_combine.util import find_tools, run_tools, EXT_DIR, ROOT_DIR
 from abr_combine.transform import *
+from abr_combine.version import get_version
+from abr_combine.predict import predict_consensus, SEQSPHERE_TEMPLATE_NAMES
 
 parser = argparse.ArgumentParser(description="Create a consensus prediction from multiple resistance detection tools")
 
@@ -25,8 +27,9 @@ parser.add_argument("--resfinder", dest="resfinder", help="Run CGE ResFinder", a
 # output options
 parser.add_argument("--tmp", dest="tmpdir", help="prefix for temporary file storage [/tmp]", default="/tmp")
 parser.add_argument("-o", dest="outtable", help="prefix to write output tables [STDOUT]", default=None)
-parser.add_argument("--xls", dest="excelfile", help="write all possible output into one excel file", default=None)
 parser.add_argument("-v", "--version", dest="version", help="Print versions and exits", action="store_true", default=False)
+parser.add_argument("--xls", dest="excelfile", help="write all possible output into one excel file", default=None)
+parser.add_argument("--spec", dest="specfile", help="write resistances into .spec file for SeqSphere import", default=None)
 
 
 def main():
@@ -49,9 +52,9 @@ def main():
             if nf == s:
                 methods.remove(s)
 
+    version_df = get_version(force=False)
     if args.version:
-        for m in ["Main", *methods]:
-            print(f"{m}: {get_version(m)}")
+        version_df.to_csv(sys.stdout, sep=":", header=None, index=None)
         exit(0)
 
     with TemporaryDirectory(dir=args.tmpdir) as tmpdir:
@@ -96,17 +99,36 @@ def main():
         write_table(view1, args.outtable +".view1.csv")
         write_table(view2, args.outtable +".view2.csv")
 
+    consensus_df = predict_consensus(view1)
+
     if args.excelfile:
         writer = pd.ExcelWriter(args.excelfile, engine='openpyxl')
+        consensus_df.to_excel(writer, 'consensus_prediction')
         view1 = color_table(view1)
         view1.to_excel(writer, 'view1_antibiotics')
         view2 = color_table(view2)
         view2.to_excel(writer, 'view2_genes')
-        #df.to_excel(writer, 'raw_output')
+        #version_df = pd.read_csv(f"{ROOT_DIR}/versions.csv", sep="\t", names=["Tool", "Version"])
         for m, d in zip(methods, dfs):
             d = color_table(d)
             d.to_excel(writer, f"raw_{m}")
+
+        version_df.to_excel(writer, "versions")
         writer.save()
+
+    if args.specfile:
+        versions = {row["toolname"]: row["version"] for i, row in version_df.iterrows()}
+        drugs = consensus_df[consensus_df["Above resistance cutoff"]].index
+        print(drugs)
+        with open(args.specfile, "w") as outf_h:
+            for drug in drugs:
+                outf_h.write(f"ef.Antimicrobial.{drug.replace('+', '_').replace(' ', '_').lower()}=Resistant\n")
+            for m in methods:
+                version_tag = SEQSPHERE_TEMPLATE_NAMES.get(m)
+                if version_tag:
+                    outf_h.write(f"ef.Antimicrobial.{version_tag}={versions[m]}\n")
+            outf_h.write(f"ef.Antimicrobial.script_version={versions['Main']}\n")
+            
 
 
 if __name__ == '__main__':
