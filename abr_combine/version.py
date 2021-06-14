@@ -6,7 +6,7 @@ import pandas as pd
 from ext.resfinder.cge.out.util.generator import Generator
 from abr_combine.util import tools, ROOT_DIR, EXT_DIR
 
-version="0.1-alpha"
+version="0.1a"
 
 def get_version_ncbi(cmd):
     stdout = subprocess.check_output([cmd,"-l"], stderr=subprocess.STDOUT)
@@ -37,8 +37,8 @@ def get_version_resfinder(cmd):
 
 
 def get_version_main():
-    _, commit = Generator.get_version_commit(os.path.dirname(ROOT_DIR))
-    return f"{MAIN_VERSION}-{version}"
+    v, commit = Generator.get_version_commit(os.path.dirname(ROOT_DIR))
+    return f"{v}-{commit}"
 
 def get_version(force=False):
     """
