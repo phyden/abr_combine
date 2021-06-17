@@ -3,7 +3,7 @@ import re
 import subprocess
 import pandas as pd
 
-from ext.resfinder.cge.out.util.generator import Generator
+from git import Repo
 from abr_combine.util import tools, ROOT_DIR, EXT_DIR
 
 version="0.1a"
@@ -29,15 +29,30 @@ def get_version_card(cmd):
     return f"rgi-{version_tool};db-{version_db}"
 
 
+def get_git_version(gitdir):
+    try:
+        repo = Repo(gitdir)
+    except InvalidGitRepositoryError:
+        return ("unknown", "unknown")
+
+    com2tag = {}
+    for tag in repo.tags:
+        com2tag[tag.commit.hexsha] = str(tag)
+
+    version = com2tag.get(repo.commit().hexsha, repo.commit().hexsha[:7])
+
+    return (version, repo.commit().hexsha)
+
+
 def get_version_resfinder(cmd):
-    version_tool, commit = Generator.get_version_commit(os.path.join(EXT_DIR,"resfinder"))
-    version_acq, commit = Generator.get_version_commit(os.path.join(EXT_DIR,"db_resfinder"))
-    version_point, commit = Generator.get_version_commit(os.path.join(EXT_DIR,"db_pointfinder"))
+    version_tool, commit = get_git_version(os.path.join(EXT_DIR,"resfinder"))
+    version_acq, commit = get_git_version(os.path.join(EXT_DIR,"db_resfinder"))
+    version_point, commit = get_git_version(os.path.join(EXT_DIR,"db_pointfinder"))
     return f"resfinder-{version_tool};acqdb-{version_acq};pointdb-{version_point}"
 
 
 def get_version_main():
-    v, commit = Generator.get_version_commit(os.path.dirname(ROOT_DIR))
+    v, commit = get_git_version(os.path.dirname(ROOT_DIR))
     return f"{v}-{commit}"
 
 def get_version(force=False):
