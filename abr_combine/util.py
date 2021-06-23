@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import os
 import subprocess
 import re
@@ -93,8 +94,13 @@ def run_amrtool(tool, cmd, fasta_input, params, organism, tmpdir):
         params.extend(["-i", fasta_input])
 
     params.extend(["-o", f"{tmpdir}/{tool}"])
-    print(f"Running {tool}:\n%s" % " ".join([cmd, *params]))
-    subprocess.call([cmd, *params])
+    sys.stdout.write(f"Running {tool}:\n%s" % " ".join([cmd, *params]))
+    try:
+        subprocess.check_call([cmd, *params])
+        return 0
+    except subprocess.CalledProcessError:
+        return 1
+
 
 
 #### functions that might be called from outside ####
@@ -106,19 +112,24 @@ def find_tools(selected):
         if tool not in selected:
             continue
         try:
-            #print(f"{tool} version:")
-            #print(" ".join([cmd, *params]))
+            #sys.stdout.write(f"{tool} version:")
+            #sys.stdout.write(" ".join([cmd, *params]))
             stdout = subprocess.check_output([cmd, *params], stderr=subprocess.STDOUT)
         except FileNotFoundError:
             nd_tools.append(tool)
-            print("Tool not found")
+            sys.stdout.write("Tool not found: %s" % tool)
     return nd_tools
 
 
 def run_tools(selected, inputfile, organism, tmpdir):
     for tool, cmd, params in zip(tools["name"], tools["cmd"], tools["default_params"]):
         if tool in selected:
-            run_amrtool(tool, cmd, inputfile, params, organism, tmpdir)
+            exit_code = run_amrtool(tool, cmd, inputfile, params, organism, tmpdir)
+            if exit_code != 0:
+                sys.stdout.write("Execution of tool failed: %s" % tool)
+                selected.remove(tool) 
+
+    return selected
 
 
 def get_version(tool):

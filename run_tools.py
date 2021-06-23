@@ -24,6 +24,11 @@ parser.add_argument("--amrfinder", dest="amrfinder", help="Run NCBIAmrFinderPlus
 parser.add_argument("--rgi", dest="rgi", help="Run CARD-RGI", action="store_true", default=False)
 parser.add_argument("--resfinder", dest="resfinder", help="Run CGE ResFinder", action="store_true", default=False)
 
+# tool result input
+parser.add_argument("--amrfinder_result", dest="amrfinder_result", help="Pre-calculated NCBIAmrFinderPlus result table", default=None)
+parser.add_argument("--rgi_result", dest="rgi_result", help="Pre-calculated CARD-RGI result table", default=None)
+parser.add_argument("--resfinder_result", dest="resfinder_result", help="Pre-calculated ResFinder result table", default=None)
+
 # output options
 parser.add_argument("--tmp", dest="tmpdir", help="prefix for temporary file storage [/tmp]", default="/tmp")
 parser.add_argument("-o", dest="outtable", help="prefix to write output tables [STDOUT]", default=None)
@@ -37,13 +42,14 @@ def main():
 
     # detecting tools to be used:
     methods = []
-    if args.amrfinder:
+    outputfiles = {}
+    if args.amrfinder and not args.amrfinder_result:
         methods.append("NCBIAMRFinder")
-    if args.rgi:
+    if args.rgi and not args.rgi_result:
         methods.append("CARD-RGI")
-    if args.resfinder:
+    if args.resfinder and not args.resfinder_result:
         methods.append("ResFinder")
-    if not any([args.amrfinder, args.rgi, args.resfinder]) or args.auto:
+    if not any([args.amrfinder, args.rgi, args.resfinder, args.amrfinder_result, args.rgi_result, args.resfinder_result]) or args.auto:
         methods = ["NCBIAMRFinder","CARD-RGI","ResFinder"]
 
     not_found = find_tools(methods)
@@ -66,14 +72,28 @@ def main():
         else:
             input_fasta = args.input_fasta
 
-        run_tools(methods, input_fasta, args.species, tmpdir)
+        # run tools and update output to methods that did not fail
+        methods = run_tools(methods, input_fasta, args.species, tmpdir)
+        if args.amrfinder_result:
+            methods.append("NCBIAMRFinder")
+            outputfiles["NCBIAMRFinder"] = args.amrfinder_result
+        if args.rgi_result:
+            methods.append("CARD-RGI")
+            outputfiles["CARD-RGI"] = args.rgi_result
+        if args.resfinder_result:
+            methods.append("ResFinder")
+            outputfiles["ResFinder"] = args.resfinder_result
 
-        print(os.listdir(tmpdir))
         # read files for each successful method and store df output
         dfs = []
         for tool in methods:
-            if os.path.exists(f"{tmpdir}/{tool}") or os.path.exists(f"{tmpdir}/{tool}.txt"):
-                dfs.append(read_amr(f"{tmpdir}/{tool}", tool))
+            for output_file in [outputfiles.get(tool, f"{tmpdir}/{tool}"),f"{tmpdir}/{tool}.txt"]:
+                if os.path.exists(output_file):
+                    try:
+                        dfs.append(read_amr(output_file, tool))
+                    except pd.errors.EmptyDataError:
+                        sys.stderr.write(f"{output_file} is empty\n")
+                        methods.remove(tool)
                 
 
     if len(dfs) == 0:

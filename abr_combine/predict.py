@@ -14,6 +14,8 @@ SEQSPHERE_TEMPLATE_NAMES = {"NCBIAMRFinder": "amrfinder_version",
 
 def predict_consensus(df):
 
+    if df.empty:
+        return(pd.DataFrame(columns=["Mean weighted score","Above resistance cutoff"]))
     if "mo" in df.columns:
         df.set_index("mo")
     else:
@@ -24,8 +26,10 @@ def predict_consensus(df):
     for c in df_scores.columns:
         weight = method_weights.get(c, 1.)
         df_scores[c] = (max_single_score - df_scores[c]) * weight
-    
-    mean_score = df_scores.mean(axis = 1)
+   
+    df_scores.fillna(value=0, inplace=True)
+    df_scores.replace(r'^\s*$', 0, regex=True, inplace=True)
+    mean_score = df_scores.mean(axis = 1, skipna=False)
     pred = (mean_score > max_single_score * min_prediction_score)
     df = pd.concat([mean_score, pred], axis=1)
     df.columns = ["Mean weighted score","Above resistance cutoff"]

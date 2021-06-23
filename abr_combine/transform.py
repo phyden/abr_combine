@@ -23,7 +23,7 @@ def read_amr(tool_output, tool):
         return read_table(tool_output, tool, ofs="\t", ifs="/", amr_col="Subclass", gene_col="Gene symbol",
                           coverage="% Coverage of reference sequence", identity="% Identity to reference sequence", report=["Method"])
     elif tool == "CARD-RGI":
-        return read_table(f"{tool_output}.txt", tool, ofs="\t", ifs="; ", amr_col="Drug Class", gene_col="Best_Hit_ARO",
+        return read_table(tool_output, tool, ofs="\t", ifs="; ", amr_col="Drug Class", gene_col="Best_Hit_ARO",
                           sel_col="Cut_Off", sel_val="Loose", quality="Cut_Off")
     elif tool == "ResFinder":
         return read_table(f"{tool_output}/ResFinder_results_tab.txt", tool, ofs="\t", ifs=",", amr_col="Phenotype", gene_col="Resistance gene",
@@ -66,46 +66,49 @@ def read_table(textfile, tool, ofs, ifs, amr_col, gene_col, sel_col=None, sel_va
 
         df.rename(columns=rename_dict, inplace=True)
         df = df.sort_values(by=specified, ascending=False)
-        df[color_colname] = df.apply(select_color, axis=1, args=[tool])
-        df = df.sort_values(by=color_colname, ascending=True)
-        # filter by color value:
+        if df.empty:
+            df = pd.DataFrame(columns=list(df.columns) + [color_colname])
+        else:
+            df[color_colname] = df.apply(select_color, axis=1, args=[tool])
+            df = df.sort_values(by=color_colname, ascending=True)
 
-    df[amr_col] = df[amr_col].str.replace(ifs,",")
-    df.rename(columns={amr_col: ab_colname}, inplace=True) 
+    if not df.empty:
+        df[amr_col] = df[amr_col].str.replace(ifs,",")
+        df.rename(columns={amr_col: ab_colname}, inplace=True) 
 
-    df.drop_duplicates(subset=gene_col, inplace=True)
-    # create return columns, one with genename (named by tool) and one to merge results on
-    if tool == "phenotype":
-        df[gene_col] = df[gene_col].str.split("_",expand=True)[0]
+        df.drop_duplicates(subset=gene_col, inplace=True)
+        # create return columns, one with genename (named by tool) and one to merge results on
+        if tool == "phenotype":
+            df[gene_col] = df[gene_col].str.split("_",expand=True)[0]
 
-    df[tool] = df[gene_col]
-    # extract gene names from CARD-RGI: often text with starting with: "Species name (genename) ... "
-    df["mo"] = df[gene_col].str.extract("^[A-Z][a-z]* [a-z]* ([A-Za-z0-9-]*) .*")
+        df[tool] = df[gene_col]
+        # extract gene names from CARD-RGI: often text with starting with: "Species name (genename) ... "
+        df["mo"] = df[gene_col].str.extract("^[A-Z][a-z]* [a-z]* ([A-Za-z0-9-]*) .*")
 
-    # remove "bla" prefix from ResFinder and AMRFinderPlus to merge with CARD-RGI bla-genes
-    df["mo2"] = df[gene_col].str.replace("bla","")
+        # remove "bla" prefix from ResFinder and AMRFinderPlus to merge with CARD-RGI bla-genes
+        df["mo2"] = df[gene_col].str.replace("bla","")
 
-    # remove "delta" suffix from AMRFinderPlus and CARD-RGI
-    df["mo2"] = df["mo2"].str.replace("delta[0-9]*$", "", regex=True)
+        # remove "delta" suffix from AMRFinderPlus and CARD-RGI
+        df["mo2"] = df["mo2"].str.replace("delta[0-9]*$", "", regex=True)
 
-    # combine the extracted names with the trimmed names
-    df["mo"] = df["mo"].combine_first(df["mo2"])
+        # combine the extracted names with the trimmed names
+        df["mo"] = df["mo"].combine_first(df["mo2"])
 
-    # remove "-number" suffix when multiple alleles of a gene are identifyable
-    df["mo"] = df["mo"].str.replace("-*[0-9]*$","", regex=True)
+        # remove "-number" suffix when multiple alleles of a gene are identifyable
+        df["mo"] = df["mo"].str.replace("-*[0-9]*$","", regex=True)
 
-    # set all to lowercase (merging is case sensitive)
-    df["mo"] = df["mo"].str.lower()
+        # set all to lowercase (merging is case sensitive)
+        df["mo"] = df["mo"].str.lower()
 
-    # filter low scoring hits if high scores are available too
-    #maximum = df.groupby("mo")[color_colname].max()
-    if tool == "phenotype":
-        n = df.groupby("mo")[tool].apply(",".join).reset_index()
-        df = df.drop_duplicates("mo").drop([tool], axis=1).merge(n, on="mo")
-    else:
-        n = df.groupby(["mo",color_colname])[tool].apply(",".join).reset_index()
-        df = df.drop_duplicates(["mo"]).drop([tool,color_colname], axis=1).merge(n, on="mo")
-        df.drop_duplicates("mo", inplace=True)
+        # filter low scoring hits if high scores are available too
+        #maximum = df.groupby("mo")[color_colname].max()
+        if tool == "phenotype":
+            n = df.groupby("mo")[tool].apply(",".join).reset_index()
+            df = df.drop_duplicates("mo").drop([tool], axis=1).merge(n, on="mo")
+        else:
+            n = df.groupby(["mo",color_colname])[tool].apply(",".join).reset_index()
+            df = df.drop_duplicates(["mo"]).drop([tool,color_colname], axis=1).merge(n, on="mo")
+            df.drop_duplicates("mo", inplace=True)
     
     report_cols = [ab_colname,tool,"mo"]
     print(report_cols)
@@ -115,13 +118,23 @@ def read_table(textfile, tool, ofs, ifs, amr_col, gene_col, sel_col=None, sel_va
         report_cols.append(color_colname)
     if report:
         report_cols.extend(report)
-    return df[report_cols]
+    if df.empty:
+        return pd.DataFrame(columns=report_cols)
+    else:
+        return df[report_cols]
 
 
 def combine_tables(dfs, on=None):
     """
     Subroutine to merge multiple pandas dataframes to one, merging on "mo" (stands for merge-on!)
     """
+
+    if all([df.empty for df in dfs]):
+        columns = []
+        for df in dfs:
+            columns.extend(df.columns)
+        columns = set(columns)
+        return pd.DataFrame(columns=columns)
 
     if len(dfs) < 2:
         df = dfs[0]
@@ -153,7 +166,8 @@ def color_table(df):
     df_color = df.copy() #[[c for c in df.columns if c.startswith("color_")]]
     for c in df_color.columns:
         if c.startswith("color_"):
-            df_color[c.split("_")[1]] = df_color[c].apply(lambda k: f"background-color: {colors[int(k)]}" if k >= 0 else "")
+            if not df.empty:
+                df_color[c.split("_")[1]] = df_color[c].apply(lambda k: f"background-color: {colors[int(k)]}" if k >= 0 else "")
             df_color.drop(c, axis=1, inplace=True)
             df.drop(c, axis=1, inplace=True)
         else:
@@ -198,8 +212,11 @@ def view_by_antibiotic(df_in, methods):
     for c in abcols:
         df["antibiotic_final"] = df["antibiotic_final"].combine_first(df[c])
 
-    s = df["antibiotic_final"].str.split(",").apply(pd.Series, 1).stack()
-    s.index = s.index.droplevel(-1)
+    try:
+        s = df["antibiotic_final"].str.split(",").apply(pd.Series, 1).stack()
+        s.index = s.index.droplevel(-1)
+    except AttributeError:
+        s = df["antibiotic_final"]
     s.name = "antibiotic_final"
     df.drop("antibiotic_final", axis=1, inplace=True)
     df = df.join(s)
@@ -209,7 +226,7 @@ def view_by_antibiotic(df_in, methods):
     tool_series = []
     color_series = []
     for m in methods:
-        if m == "phenotype" or m == "rgi_loose":
+        if m == "phenotype" or m == "rgi_loose" or m not in df.columns:
             continue
         col = f"color_{m}"
         index = df.copy().drop_duplicates("antibiotic_final").dropna(subset=[m])
@@ -217,10 +234,11 @@ def view_by_antibiotic(df_in, methods):
         index = index.reset_index().set_index("antibiotic_final")
 
         for target_col, storage in zip([m, col], [tool_series, color_series]):
-            if target_col == col:
-                s = df.dropna(subset=[target_col]).groupby("antibiotic_final")[target_col].min()
-            else:
-                s = df.dropna(subset=[target_col]).groupby("antibiotic_final")[target_col].unique().apply(",".join)
+            if not df.empty:
+                if target_col == col:
+                    s = df.dropna(subset=[target_col]).groupby("antibiotic_final")[target_col].min()
+                else:
+                    s = df.dropna(subset=[target_col]).groupby("antibiotic_final")[target_col].unique().apply(",".join)
             s = pd.merge(s, index["ind"], left_index=True, right_index=True)
             s.set_index("ind", inplace=True)
             s.name = target_col
