@@ -19,8 +19,8 @@ if [ $? -gt 0 ]; then
 	popd
 fi
 
-conda env create env -f environment.yml -n abr_combine
-conda activate abr_combine
+#conda env create -f environment.yml -n abr_combine
+#conda activate abr_combine
 
 
 # install rgi from github master not pypi
@@ -32,7 +32,7 @@ pip install .
 # download and initialize card database
 wget https://card.mcmaster.ca/latest/data
 tar -xvf data ./card.json
-rgi load --card_json /path/to/card.json
+rgi load --card_json card.json
 
 cd ..
 rm -rf rgi
@@ -46,4 +46,5 @@ amrfinder -u
 popd && rm -r $tmpdir
 
 # install resfinder and abr_combine itself
-pip install .
+git submodule init && git submodule update
+python setup.py install
