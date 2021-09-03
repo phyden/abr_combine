@@ -37,7 +37,7 @@ setup (
       package_data = {"cge": ["out/*", "output/*", "phenotype2genotype/*", "out/util/*"]},
       data_files = data_files,
       include_package_data=True,
-      scripts = ["run_tools.py","ext/resfinder/run_resfinder.py"],
+      scripts = ["run_tools.py","ext/resfinder/run_resfinder.py","combine_reports.py"],
       long_description = """This tool provides a consensus prediction of up to three tools of the group [NCBIAMRFinder, CARD-RGI and CGE-ResFinder].""",
       license = "",
       platforms = "Linux, Mac OS X"

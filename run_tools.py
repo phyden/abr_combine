@@ -35,6 +35,7 @@ parser.add_argument("-o", dest="outtable", help="prefix to write output tables [
 parser.add_argument("-v", "--version", dest="version", help="Print versions and exits", action="store_true", default=False)
 parser.add_argument("--xls", dest="excelfile", help="write all possible output into one excel file", default=None)
 parser.add_argument("--spec", dest="specfile", help="write resistances into .spec file for SeqSphere import", default=None)
+parser.add_argument("--label", dest="label", help="add tag or sample name to specific output sheets", default=None)
 
 
 def main():
@@ -108,9 +109,13 @@ def main():
     df_pheno.drop_duplicates("mo", inplace=True)
     df = df.merge(df_pheno, on="mo", how="left", suffixes=["_o",""])
     df.drop("phenotype", axis=1, inplace=True)
-    
+
     view1 = view_by_antibiotic(df, methods)
     view2 = view_by_genes(df, methods)
+
+    if args.label:
+        view1.index.name = args.label
+        view2.index.name = args.label
 
     if not args.outtable:
         write_table(view1, sys.stdout)
@@ -123,6 +128,9 @@ def main():
 
     if args.excelfile:
         writer = pd.ExcelWriter(args.excelfile, engine='openpyxl')
+
+        #if args.label:
+        #    consensus_df.rename(columns={"Above resistance cutoff": args.label}, inplace=True)
         consensus_df.to_excel(writer, 'consensus_prediction')
         view1 = color_table(view1)
         view1.to_excel(writer, 'view1_antibiotics')
@@ -131,6 +139,8 @@ def main():
         #version_df = pd.read_csv(f"{ROOT_DIR}/versions.csv", sep="\t", names=["Tool", "Version"])
         for m, d in zip(methods, dfs):
             d = color_table(d)
+            if args.label:
+                d.index.name = args.label
             d.to_excel(writer, f"raw_{m}")
 
         version_df.to_excel(writer, "versions")

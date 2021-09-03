@@ -74,6 +74,7 @@ def read_table(textfile, tool, ofs, ifs, amr_col, gene_col, sel_col=None, sel_va
 
     if not df.empty:
         df[amr_col] = df[amr_col].str.replace(ifs,",")
+        df[amr_col] = df[amr_col].str.lower().str.replace("antibiotic","")
         df.rename(columns={amr_col: ab_colname}, inplace=True) 
 
         df.drop_duplicates(subset=gene_col, inplace=True)
@@ -82,8 +83,11 @@ def read_table(textfile, tool, ofs, ifs, amr_col, gene_col, sel_col=None, sel_va
             df[gene_col] = df[gene_col].str.split("_",expand=True)[0]
 
         df[tool] = df[gene_col]
-        # extract gene names from CARD-RGI: often text with starting with: "Species name (genename) ... "
-        df["mo"] = df[gene_col].str.extract("^[A-Z][a-z]* [a-z]* ([A-Za-z0-9-]*) .*")
+        # extract gene names from CARD-RGI: often text with starting with: "Species name genename ... "
+        df["mo"] = df[gene_col].str.extract("^[A-Z][a-z-]* [a-z]* ([A-Za-z0-9-]*).*?")
+
+        # extract gene names from CARD-RGI: often text with starting with: "Long description \(genename\) ... "
+        df["mo"] = df[gene_col].str.extract("^.* \(([A-Za-z0-9-]*)\).*")
 
         # remove "bla" prefix from ResFinder and AMRFinderPlus to merge with CARD-RGI bla-genes
         df["mo2"] = df[gene_col].str.replace("bla","")
