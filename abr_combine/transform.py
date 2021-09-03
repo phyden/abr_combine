@@ -87,7 +87,8 @@ def read_table(textfile, tool, ofs, ifs, amr_col, gene_col, sel_col=None, sel_va
         df["mo"] = df[gene_col].str.extract("^[A-Z][a-z-]* [a-z]* ([A-Za-z0-9-]*)")
 
         # extract gene names from CARD-RGI: often text with starting with: "Long description \(genename\) ... "
-        df["mo"] = df["mo"].combine_first(df["mo"].str.extract("^.* \(([A-Za-z0-9-]*)\)"))
+        df["moX"] = df[gene_col].str.extract("^.* \(([A-Za-z0-9-]*)\)")
+        df["mo"] = df["mo"].combine_first(df["moX"])
 
         # remove "bla" prefix from ResFinder and AMRFinderPlus to merge with CARD-RGI bla-genes
         df["mo2"] = df[gene_col].str.replace("bla","")
