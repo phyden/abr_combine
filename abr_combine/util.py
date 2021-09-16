@@ -44,19 +44,21 @@ def find_orgn_in_list(orgn_list, orgn):
     return None
 
 
-def run_amrtool(tool, cmd, fasta_input, params, organism, tmpdir):
+def run_amrtool(tool, cmd, fasta_input, params, organism, tmpdir, threads):
     if tool == "NCBIAMRFinder":
         organism = transl_orgn_amrfinder(cmd, organism)
         params.extend(["-n", fasta_input])
         if organism:
-            params.extend(["--organism", organism])
+            params.extend(["--organism", organism, "--threads", str(threads)])
     elif tool == "ResFinder":
+        if threads > 1:
+            print("ResFinder currently not using multithreading")
         organism = transl_orgn_resfinder(cmd, organism)
         params.extend(["-ifa", fasta_input])
         if organism:
             params.extend(["--point", "--species", organism])
     elif tool == "CARD-RGI":
-        params.extend(["-i", fasta_input])
+        params.extend(["-i", fasta_input, "-n", str(threads)])
 
     params.extend(["-o", f"{tmpdir}/{tool}"])
     sys.stdout.write(f"Running {tool}:\n%s" % " ".join([cmd, *params]))

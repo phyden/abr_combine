@@ -36,6 +36,7 @@ parser.add_argument("-v", "--version", dest="version", help="Print versions and 
 parser.add_argument("--xls", dest="excelfile", help="write all possible output into one excel file", default=None)
 parser.add_argument("--spec", dest="specfile", help="write resistances into .spec file for SeqSphere import", default=None)
 parser.add_argument("--label", dest="label", help="add tag or sample name to specific output sheets", default=None)
+parser.add_argument("--threads", dest="threads", help="number of parallel threads to use [1]", metavar="INT", type=int, default=1)
 
 
 def main():
@@ -74,7 +75,7 @@ def main():
             input_fasta = args.input_fasta
 
         # run tools and update output to methods that did not fail
-        methods = run_tools(methods, input_fasta, args.species, tmpdir)
+        methods = run_tools(methods, input_fasta, args.species, tmpdir, args.threads)
         if args.amrfinder_result:
             methods.append("NCBIAMRFinder")
             outputfiles["NCBIAMRFinder"] = args.amrfinder_result
