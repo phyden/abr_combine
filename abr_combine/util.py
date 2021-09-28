@@ -88,10 +88,10 @@ def find_tools(selected):
     return nd_tools
 
 
-def run_tools(selected, inputfile, organism, tmpdir):
+def run_tools(selected, inputfile, organism, tmpdir, threads):
     for tool, cmd, params in zip(tools["name"], tools["cmd"], tools["default_params"]):
         if tool in selected:
-            exit_code = run_amrtool(tool, cmd, inputfile, params, organism, tmpdir)
+            exit_code = run_amrtool(tool, cmd, inputfile, params, organism, tmpdir, threads)
             if exit_code != 0:
                 sys.stdout.write("Execution of tool failed: %s" % tool)
                 selected.remove(tool) 
