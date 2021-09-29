@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import pandas as pd
-import numpy as np
 from styleframe import StyleFrame, Styler
 import os
 import sys
+import argparse
 
 parser = argparse.ArgumentParser(description="Combine output of multiple tools")
 
