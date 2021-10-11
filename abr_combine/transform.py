@@ -3,6 +3,7 @@
 import sys
 import csv
 import pandas as pd
+import re
 
 #### tools cutoffs used for coloring ####
 
@@ -26,8 +27,10 @@ def read_amr(tool_output, tool):
         return read_table(tool_output, tool, ofs="\t", ifs="; ", amr_col="Drug Class", gene_col="Best_Hit_ARO",
                           sel_col="Cut_Off", sel_val="Loose", quality="Cut_Off")
     elif tool == "ResFinder":
-        return read_table(f"{tool_output}/ResFinder_results_tab.txt", tool, ofs="\t", ifs=",", amr_col="Phenotype", gene_col="Resistance gene",
+        df = read_table(f"{tool_output}/ResFinder_results_tab.txt", tool, ofs="\t", ifs=",", amr_col="Phenotype", gene_col="Resistance gene",
                           coverage="Coverage", identity="Identity")
+        df = pd.concat([df, read_pointfinder(f"{tool_output}/PointFinder_table.txt", "ResFinder")])
+        return df
 
 
 def select_color(row, tool, cutoffs=default_cutoffs, colors=colors):
@@ -44,6 +47,60 @@ def select_color(row, tool, cutoffs=default_cutoffs, colors=colors):
             if val == row[key]:
                 return i
         return i
+
+
+def read_pointfinder(textfile, tool = "ResFinder"):
+    regex_nucl_mutation =  re.compile(r"([a-zA-Z0-9]*) [nr]\.(-*[0-9]*)([ACGT])>([ACGT]).*")
+    regex_prot_mutation =  re.compile(r"([a-zA-Z0-9]*) p\.([A-Z])([0-9]*)([A-Z]).*")
+    target_genes = []
+    store = []
+    res_column = 0
+    header = False
+    gene_block = None
+    with open(textfile, "r") as inf_h:
+        for line in inf_h:
+            if line.startswith("Genes:"):
+                target_genes = [t.strip() for t in line[6:].split(",")]
+                print(target_genes)
+                continue
+            if not line.strip():
+                gene_block = None
+                continue
+            if gene_block:
+                if line.startswith("Mutation"):
+                    for i, colname in enumerate(line.split("\t")):
+                        if colname.strip() == "Resistance":
+                            res_column = i
+                    continue
+                elif line.startswith(gene_block):
+                    fields = line.strip().split("\t")
+                    print(fields)
+                    mutation = fields[0]
+                    m = regex_prot_mutation.search(mutation)
+                    if m:
+                        mut_name = m.group(1) + "_" + m.group(2) + str(m.group(3)) + m.group(4)
+                    else:
+                        m = regex_nucl_mutation.search(mutation)
+                        if m:
+                            mut_name = m.group(1) + "_" + m.group(3) + str(m.group(2)) + m.group(4)
+                        else:
+                            mut_name = mutation
+                    
+                    for r in fields[res_column].split(","):
+                        store.append([r.strip().lower(), mutation, mut_name.lower(), 0])
+                else:
+                    store.append(["info", gene_block + ": " + line.strip(), gene_block, 2])
+            else:
+                for gene in target_genes:
+                    if line.startswith(gene.strip()):
+                        gene_block = gene.strip()
+                        print(gene_block)
+                        header = True
+                        break
+                                                                                                                            
+    
+    df = pd.DataFrame(store, columns=[f"antibiotic_{tool}",tool,"mo",f"color_{tool}"])
+    return df
 
 
 def read_table(textfile, tool, ofs, ifs, amr_col, gene_col, sel_col=None, sel_val=None, report=None, coverage=None, identity=None, quality=None):
