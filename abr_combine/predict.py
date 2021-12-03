@@ -6,7 +6,7 @@ method_weights = {"NCBIAMRFinder": 1.,
                   }
 
 max_single_score = 3
-min_prediction_score = 0.5
+min_prediction_score = 0.5 # relative to max
 SEQSPHERE_TEMPLATE_NAMES = {"NCBIAMRFinder": "amrfinder_version",
                             "CARD-RGI": "card_version",
                             "ResFinder": "resfinder_version",

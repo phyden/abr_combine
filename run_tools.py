@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import gzip
 import shutil
 
-from abr_combine.util import find_tools, run_tools, EXT_DIR, ROOT_DIR
+from abr_combine.util import find_tools, run_tools, EXT_DIR, ROOT_DIR, transl_orgn_resfinder
 from abr_combine.transform import *
 from abr_combine.version import get_version
 from abr_combine.predict import predict_consensus, SEQSPHERE_TEMPLATE_NAMES
@@ -45,14 +45,14 @@ def main():
     # detecting tools to be used:
     methods = []
     outputfiles = {}
+    if args.resfinder and not args.resfinder_result:
+        methods.append("ResFinder")
     if args.amrfinder and not args.amrfinder_result:
         methods.append("NCBIAMRFinder")
     if args.rgi and not args.rgi_result:
         methods.append("CARD-RGI")
-    if args.resfinder and not args.resfinder_result:
-        methods.append("ResFinder")
     if not any([args.amrfinder, args.rgi, args.resfinder, args.amrfinder_result, args.rgi_result, args.resfinder_result]) or args.auto:
-        methods = ["NCBIAMRFinder","CARD-RGI","ResFinder"]
+        methods = ["ResFinder", "NCBIAMRFinder","CARD-RGI"]
 
     not_found = find_tools(methods)
     for nf in not_found:
@@ -108,8 +108,33 @@ def main():
     phenofile = os.path.join(EXT_DIR, "db_resfinder", "phenotypes.txt")
     df_pheno = read_table(phenofile, "phenotype", "\t", ",", "Phenotype", "Gene_accession no.", report=["Class"])
     df_pheno.drop_duplicates("mo", inplace=True)
+
+    pointfinder_species = transl_orgn_resfinder("" ,args.species)
+    if pointfinder_species:
+        # TODO rewrite to function
+        point_pheno_file = os.path.join(EXT_DIR, "db_pointfinder", pointfinder_species.replace(" ","_") ,"resistens-overview.txt")
+        df_point_pheno = pd.read_csv(point_pheno_file, sep="\t", header=None, names=["Gene_ID","Gene_name","Codon_pos","Ref_nuc","Ref_codon","Res_codon","Resistance","PMID","Mechanism","Notes","Required_mut"], comment="#")
+
+        # expanding multiple possible Res_codons to multiple rows
+        s = df_point_pheno.apply(lambda row: pd.Series(row["Res_codon"].split(",")), axis=1).stack().reset_index(level=1, drop=True)
+        s.name = 'Res_codon'
+        df_point_pheno = df_point_pheno.drop("Res_codon", axis=1).join(s)
+
+        # create mergeable resistance gene code
+        pos = df_point_pheno["Ref_codon"] + df_point_pheno["Codon_pos"].astype(int).astype(str) + df_point_pheno["Res_codon"]
+        df_point_pheno["phenotype"] = df_point_pheno["Gene_name"] + "_" + pos
+
+        # create mergeable df structure
+        df_point_pheno["antibiotic_phenotype"] = df_point_pheno["Resistance"]
+        df_point_pheno["mo"] = df_point_pheno["Gene_name"].str.lower() + "_" + pos.str.lower()
+        df_point_pheno = df_point_pheno[['antibiotic_phenotype', 'phenotype', 'mo']].drop_duplicates(subset="mo")
+        
+        # append pointfinder phenotype to resfinder phenotypes (antibiotics naming for resistance genes)
+        df_pheno = pd.concat([df_pheno, df_point_pheno])
+
     df = df.merge(df_pheno, on="mo", how="left", suffixes=["_o",""])
     df.drop("phenotype", axis=1, inplace=True)
+    
 
     view1 = view_by_antibiotic(df, methods)
     view2 = view_by_genes(df, methods)

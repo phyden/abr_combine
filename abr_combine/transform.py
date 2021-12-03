@@ -29,7 +29,7 @@ def read_amr(tool_output, tool):
     elif tool == "ResFinder":
         df = read_table(f"{tool_output}/ResFinder_results_tab.txt", tool, ofs="\t", ifs=",", amr_col="Phenotype", gene_col="Resistance gene",
                           coverage="Coverage", identity="Identity")
-        df = pd.concat([df, read_pointfinder(f"{tool_output}/PointFinder_table.txt", "ResFinder")])
+        df = pd.concat([df, read_pointfinder(f"{tool_output}/PointFinder_table.txt", "ResFinder")], ignore_index=True)
         return df
 
 
@@ -50,8 +50,8 @@ def select_color(row, tool, cutoffs=default_cutoffs, colors=colors):
 
 
 def read_pointfinder(textfile, tool = "ResFinder"):
-    regex_nucl_mutation =  re.compile(r"([a-zA-Z0-9]*) [nr]\.(-*[0-9]*)([ACGT])>([ACGT]).*")
-    regex_prot_mutation =  re.compile(r"([a-zA-Z0-9]*) p\.([A-Z])([0-9]*)([A-Z]).*")
+    regex_nucl_mutation =  re.compile(r"([a-zA-Z0-9 ]*) [nr]\.(-*[0-9]*)([ACGT])>([ACGT]).*")
+    regex_prot_mutation =  re.compile(r"([a-zA-Z0-9 ]*) p\.([A-Z])([0-9]*)([A-Z]).*")
     target_genes = []
     store = []
     res_column = 0
@@ -100,6 +100,7 @@ def read_pointfinder(textfile, tool = "ResFinder"):
                                                                                                                             
     
     df = pd.DataFrame(store, columns=[f"antibiotic_{tool}",tool,"mo",f"color_{tool}"])
+    df.drop_duplicates(subset=["mo"], inplace=True)
     return df
 
 
