@@ -22,12 +22,13 @@ fi
 source /opt/apps/miniconda3/bin/activate
 
 conda env remove "abr_combine"
-conda create -n "abr_combine" -c conda-forge -c bioconda "blast>=2.9" "ncbi-amrfinderplus>=3.10.15" "samtools>=1.12"
+conda create -y -n "abr_combine" -c conda-forge -c bioconda "blast>=2.9" "ncbi-amrfinderplus>=3.10.15" "samtools>=1.12" "python==3.8"
 conda activate abr_combine
 
 
 # install rgi from github master not pypi
 pushd $tmpdir
+pip install "biopython>=1.78"
 pip install git+https://github.com/arpcard/rgi.git
 
 # download and initialize card database
@@ -43,5 +44,5 @@ popd && rm -r $tmpdir
 
 # install resfinder and abr_combine itself
 git submodule init && git submodule update
-pip install cgecore
+pip install cgecore gitpython tabulate
 python setup.py install
