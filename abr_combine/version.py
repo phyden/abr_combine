@@ -32,7 +32,7 @@ def get_version_card(cmd):
 def get_git_version(gitdir):
     try:
         repo = Repo(gitdir)
-    except InvalidGitRepositoryError:
+    except:
         return ("unknown", "unknown")
 
     com2tag = {}
